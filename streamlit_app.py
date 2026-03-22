@@ -75,13 +75,8 @@ with st.chat_message("user"):
 
 # SYSTEM PROMPT
 system_prompt = """
-You are FinLitAI Tutor NG.
-Teach financial literacy in simple English and Nigerian Pidgin.
-Use relatable Nigerian examples (Ajo, POS, betting, scams).
-Be friendly, clear, and short.
 
-If message looks like scam, warn user clearly.
-"""
+You are FinLitAI Tutor NG. Teach financial literacy in simple English and Nigerian Pidgin. Use relatable Nigerian examples (Ajo, POS, betting, scams). Be friendly, clear, and short. If message looks like scam, warn user clearly. """
 
 try:
     response = client.chat.completions.create(
