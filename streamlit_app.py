@@ -81,9 +81,7 @@ if user_input:
     with st.chat_message("user"):
         st.markdown(user_input)
 
-    # -----------------------------
     # Hybrid AI: Live if API key exists, else fallback
-    # -----------------------------
     try:
         api_key = st.secrets.get("OPENAI_API_KEY")
         if not api_key:
@@ -110,9 +108,6 @@ Be friendly, clear, and short.
         )
         reply = response.choices[0].message.content
 
-    # -----------------------------
-    # If API fails for any reason, use backup mode
-    # -----------------------------
     except Exception:
         reply = backup_response(user_input)
         st.info("⚠️ Running in demo backup mode (offline responses).")
@@ -122,18 +117,16 @@ Be friendly, clear, and short.
         st.markdown(reply)
 
 # =============================
-# FOOTER
+# GREEN 3MTT-THEMED FOOTER
 # =============================
 st.markdown(
     """
-    <hr style="border-top: 1px solid #ddd;">
-    <div style="text-align: center; padding: 20px 0; color: #666; font-size: 14px;">
-        <img src="https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/finlitai-tutor-ng/main/3mtt-nextgen-logo.png" 
-             alt="3MTT NextGen Logo" 
-             style="height: 60px; margin-bottom: 10px;">
-        <br>
-        Built with love for the <strong>3MTT NextGen Knowledge Showcase</strong> 🇳🇬<br>
-        Powered by AI • Individual Submission • Education Pillar
+    <hr style="border-top:2px solid #228B22; margin:40px 0 20px;">
+    <div style="text-align:center; background-color:#004d00; color:#f0f8ff; font-size:14px; padding:20px 10px; border-radius:8px; margin:0 auto; max-width:800px;">
+        Fellow ID: <strong>FE/26/4246539238</strong><br>
+        Submitted by <strong>Adama Nuhu</strong><br>
+        <span style="color:#32CD32; font-weight:bold;">3MTT NextGen Knowledge Showcase</span> 🇳🇬<br>
+        Education Pillar • Powered by AI
     </div>
     """,
     unsafe_allow_html=True
