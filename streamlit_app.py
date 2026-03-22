@@ -15,7 +15,12 @@ st.info("💡 Try: 'How I fit save money?' or 'Is this investment legit?'")
 # =============================
 # LOAD OPENAI API KEY
 # =============================
-api_key = st.secrets.get("OPENAI_API_KEY")
+api_key = st.text_input("Enter OpenAI API Key", type="password")
+
+if not api_key:
+    st.stop()
+
+client = OpenAI(api_key=api_key)
 
 if not api_key:
     st.warning("⚠️ OpenAI API key not found. Enter it below for testing.")
