@@ -1,5 +1,4 @@
-import streamlit as st 
-from openai import OpenAI
+import streamlit as st from openai import OpenAI
 
 =============================
 
@@ -17,21 +16,11 @@ SAFE API KEY LOAD
 
 =============================
 
-api_key = None
-
-Try Streamlit secrets first
-
-if "OPENAI_API_KEY" in st.secrets: api_key = st.secrets["OPENAI_API_KEY"]
-
-Fallback: manual input (for testing)
+api_key = None if "OPENAI_API_KEY" in st.secrets: api_key = st.secrets["OPENAI_API_KEY"]
 
 if not api_key: st.warning("⚠️ API key not found in secrets. Enter it below for testing.") api_key = st.text_input("Enter OpenAI API Key", type="password")
 
-Stop app if no key
-
 if not api_key: st.stop()
-
-Initialize client
 
 client = OpenAI(api_key=api_key)
 
@@ -51,7 +40,7 @@ SIDEBAR (LESSONS)
 
 =============================
 
-st.sidebar.header("📚 Lessons") lesson = st.sidebar.selectbox( "Choose a topic", ["Savings", "Budgeting", "Scams", "Banking Basics"] )
+st.sidebar.header("📚 Lessons") lesson = st.sidebar.selectbox("Choose a topic", ["Savings", "Budgeting", "Scams", "Banking Basics"])
 
 LESSONS = { "Savings": "Savings na when you keep part of your money for future use instead of spending everything.", "Budgeting": "Budget na plan wey show how you go spend your money so you no go finish am.", "Scams": "Scam na trick wey people use collect your money. If e too good to be true, na scam.", "Banking Basics": "Bank na place wey you fit keep money safe and send money to others." }
 
@@ -63,11 +52,7 @@ QUIZ SECTION
 
 =============================
 
-st.sidebar.header("🧠 Quick Quiz")
-
-quiz_question = "Which one be scam?" options = [ "Save ₦1000 every week", "Invest ₦5k get ₦50k in 2 days", "Open bank account", "Track your expenses" ]
-
-answer = st.sidebar.radio(quiz_question, options)
+st.sidebar.header("🧠 Quick Quiz") quiz_question = "Which one be scam?" options = ["Save ₦1000 every week", "Invest ₦5k get ₦50k in 2 days", "Open bank account", "Track your expenses"] answer = st.sidebar.radio(quiz_question, options)
 
 if st.sidebar.button("Submit Answer"): if answer == "Invest ₦5k get ₦50k in 2 days": st.sidebar.success("Correct! 🎉") st.session_state.score += 1 else: st.sidebar.error("Wrong! Try again.")
 
@@ -79,9 +64,7 @@ CHAT INTERFACE
 
 =============================
 
-st.subheader("💬 Ask FinLitAI")
-
-for msg in st.session_state.messages: with st.chat_message(msg["role"]): st.markdown(msg["content"])
+st.subheader("💬 Ask FinLitAI") for msg in st.session_state.messages: with st.chat_message(msg["role"]): st.markdown(msg["content"])
 
 user_input = st.chat_input("Ask about money in Pidgin or English...")
 
@@ -103,20 +86,14 @@ If message looks like scam, warn user clearly.
 try:
     response = client.chat.completions.create(
         model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            *st.session_state.messages
-        ]
+        messages=[{"role": "system", "content": system_prompt}, *st.session_state.messages]
     )
-
     reply = response.choices[0].message.content
-
 except Exception as e:
     reply = "⚠️ Error connecting to AI. Check your API key or internet connection."
     st.error(str(e))
 
 st.session_state.messages.append({"role": "assistant", "content": reply})
-
 with st.chat_message("assistant"):
     st.markdown(reply)
 
