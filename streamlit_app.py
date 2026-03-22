@@ -3,7 +3,7 @@ from openai import OpenAI
 
 =============================
 
-CONFIG
+CONFIGURATION
 
 =============================
 
@@ -13,13 +13,13 @@ st.title("FinLitAI Tutor NG 🇳🇬") st.write("Your AI money tutor (Pidgin + E
 
 =============================
 
-SAFE API KEY LOAD
+LOAD OPENAI API KEY
 
 =============================
 
-api_key = None if "OPENAI_API_KEY" in st.secrets: api_key = st.secrets["OPENAI_API_KEY"]
+api_key = st.secrets.get("OPENAI_API_KEY")
 
-if not api_key: st.warning("⚠️ API key not found in secrets. Enter it below for testing.") api_key = st.text_input("Enter OpenAI API Key", type="password")
+if not api_key: st.warning("⚠️ OpenAI API key not found. Enter it below for testing.") api_key = st.text_input("Enter OpenAI API Key", type="password")
 
 if not api_key: st.stop()
 
@@ -31,13 +31,11 @@ SESSION STATE
 
 =============================
 
-if "messages" not in st.session_state: st.session_state.messages = []
-
-if "score" not in st.session_state: st.session_state.score = 0
+if "messages" not in st.session_state: st.session_state.messages = [] if "score" not in st.session_state: st.session_state.score = 0
 
 =============================
 
-SIDEBAR (LESSONS)
+LESSONS SIDEBAR
 
 =============================
 
@@ -49,7 +47,7 @@ if st.sidebar.button("Show Lesson"): st.sidebar.success(LESSONS[lesson])
 
 =============================
 
-QUIZ SECTION
+QUIZ SIDEBAR
 
 =============================
 
@@ -65,14 +63,11 @@ CHAT INTERFACE
 
 =============================
 
-st.subheader("💬 Ask FinLitAI") for msg in st.session_state.messages: with st.chat_message(msg["role"]): st.markdown(msg["content"])
+st.subheader("💬 Ask FinLitAI") for msg in st.session_state.messages: with st.chat_message(msg['role']): st.markdown(msg['content'])
 
 user_input = st.chat_input("Ask about money in Pidgin or English...")
 
-if user_input: st.session_state.messages.append({"role": "user", "content": user_input})
-
-with st.chat_message("user"):
-    st.markdown(user_input)
+if user_input: st.session_state.messages.append({"role": "user", "content": user_input}) with st.chat_message("user"): st.markdown(user_input)
 
 # SYSTEM PROMPT
 system_prompt = """
