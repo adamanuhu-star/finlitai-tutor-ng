@@ -1,4 +1,5 @@
 import streamlit as st
+from openai import OpenAI
 
 # =============================
 # APP CONFIG
@@ -20,10 +21,7 @@ if "score" not in st.session_state:
 # LESSONS SIDEBAR
 # =============================
 st.sidebar.header("📚 Lessons")
-lesson = st.sidebar.selectbox(
-    "Choose a topic",
-    ["Savings", "Budgeting", "Scams", "Banking Basics"]
-)
+lesson = st.sidebar.selectbox("Choose a topic", ["Savings", "Budgeting", "Scams", "Banking Basics"])
 
 LESSONS = {
     "Savings": "Savings na when you keep part of your money for future use instead of spending everything.",
@@ -40,12 +38,7 @@ if st.sidebar.button("Show Lesson"):
 # =============================
 st.sidebar.header("🧠 Quick Quiz")
 quiz_question = "Which one be scam?"
-options = [
-    "Save ₦1000 every week",
-    "Invest ₦5k get ₦50k in 2 days",
-    "Open bank account",
-    "Track your expenses"
-]
+options = ["Save ₦1000 every week", "Invest ₦5k get ₦50k in 2 days", "Open bank account", "Track your expenses"]
 answer = st.sidebar.radio(quiz_question, options)
 
 if st.sidebar.button("Submit Answer"):
@@ -54,11 +47,10 @@ if st.sidebar.button("Submit Answer"):
         st.session_state.score += 1
     else:
         st.sidebar.error("Wrong! Try again.")
-
 st.sidebar.write(f"Score: {st.session_state.score}")
 
 # =============================
-# BACKUP CHAT FUNCTION
+# BACKUP RESPONSE FUNCTION
 # =============================
 def backup_response(user_input):
     text = user_input.lower()
@@ -89,15 +81,48 @@ if user_input:
     with st.chat_message("user"):
         st.markdown(user_input)
 
-    # Use backup mode only (offline safe)
-    reply = backup_response(user_input)
+    # -----------------------------
+    # Hybrid AI: Live if API key exists, else fallback
+    # -----------------------------
+    try:
+        api_key = st.secrets.get("OPENAI_API_KEY")
+        if not api_key:
+            raise Exception("No API key found")
+
+        client = OpenAI(api_key=api_key)
+        system_prompt = """
+You are FinLitAI Tutor NG.
+
+Teach financial literacy in simple English and Nigerian Pidgin.
+
+IMPORTANT:
+- If user message looks like a scam, clearly warn them.
+- Explain WHY it is a scam.
+- Suggest a safer alternative.
+
+Use Nigerian examples (Ajo, POS, betting, Ponzi schemes).
+Be friendly, clear, and short.
+"""
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "system", "content": system_prompt}, *st.session_state.messages]
+        )
+        reply = response.choices[0].message.content
+
+    # -----------------------------
+    # If API fails for any reason, use backup mode
+    # -----------------------------
+    except Exception:
+        reply = backup_response(user_input)
+        st.info("⚠️ Running in demo backup mode (offline responses).")
+
     st.session_state.messages.append({"role": "assistant", "content": reply})
     with st.chat_message("assistant"):
         st.markdown(reply)
-    st.info("⚠️ Running in demo backup mode (offline responses).")
 
 # =============================
-# FOOTER WITH 3MTT BRANDING
+# FOOTER
 # =============================
 st.markdown(
     """
