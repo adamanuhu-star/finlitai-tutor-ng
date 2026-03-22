@@ -107,3 +107,4 @@ If message looks like scam, warn user clearly.
 # =============================
 st.markdown("---")
 st.markdown("🚀 Built with ❤️ for Nigerian youth | FinLitAI Tutor NG")
+st.markdown("🏆 Submitted to 3MTT NextGen 2026")
