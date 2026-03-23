@@ -38,7 +38,13 @@ if st.sidebar.button("Show Lesson"):
 # =============================
 st.sidebar.header("🧠 Quick Quiz")
 quiz_question = "Which one be scam?"
-options = ["Save ₦1000 every week", "Invest ₦5k get ₦50k in 2 days", "Open bank account", "Track your expenses"]
+options = [
+    "Save ₦1000 every week",
+    "Invest ₦5k get ₦50k in 2 days",
+    "Open bank account",
+    "Track your expenses"
+]
+
 answer = st.sidebar.radio(quiz_question, options)
 
 if st.sidebar.button("Submit Answer"):
@@ -47,6 +53,7 @@ if st.sidebar.button("Submit Answer"):
         st.session_state.score += 1
     else:
         st.sidebar.error("Wrong! Try again.")
+
 st.sidebar.write(f"Score: {st.session_state.score}")
 
 # =============================
@@ -54,14 +61,19 @@ st.sidebar.write(f"Score: {st.session_state.score}")
 # =============================
 def backup_response(user_input):
     text = user_input.lower()
+
     if "save" in text:
         return "💡 Start small. Keep part of your money weekly. Even ₦500 helps. Avoid unnecessary spending."
+
     elif "budget" in text:
         return "📊 Budget means planning your money: divide your money into needs, wants, and savings."
+
     elif "scam" in text or "invest" in text:
         return "⚠️ This looks like a scam. High returns in 2 days are risky. Always verify before investing."
+
     elif "bank" in text:
         return "🏦 Banks keep your money safe and help you send/receive money securely."
+
     else:
         return "🤖 I'm here to help you learn money basics. Ask about savings, scams, or budgeting!"
 
@@ -77,17 +89,19 @@ for msg in st.session_state.messages:
 user_input = st.chat_input("Ask about money in Pidgin or English...")
 
 if user_input:
+    # Show user message
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
         st.markdown(user_input)
 
-    # Hybrid AI: Live if API key exists, else fallback
     try:
         api_key = st.secrets.get("OPENAI_API_KEY")
+
         if not api_key:
             raise Exception("No API key found")
 
         client = OpenAI(api_key=api_key)
+
         system_prompt = """
 You are FinLitAI Tutor NG.
 
@@ -104,14 +118,21 @@ Be friendly, clear, and short.
 
         response = client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[{"role": "system", "content": system_prompt}, *st.session_state.messages]
+            messages=[
+                {"role": "system", "content": system_prompt},
+                *st.session_state.messages
+            ]
         )
+
         reply = response.choices[0].message.content
 
-    except Exception:
+    except Exception as e:
         reply = backup_response(user_input)
-        st.info("⚠️ Running in demo backup mode (offline responses).")
+        st.warning("⚠️ Running in demo backup mode (offline responses).")
+        # Uncomment for debugging if needed:
+        # st.write("Debug:", e)
 
+    # Show assistant reply
     st.session_state.messages.append({"role": "assistant", "content": reply})
     with st.chat_message("assistant"):
         st.markdown(reply)
