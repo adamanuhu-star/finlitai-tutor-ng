@@ -1,96 +1,154 @@
 import streamlit as st
 from openai import OpenAI
-import random
 
 # =============================
 # APP CONFIG
 # =============================
-st.set_page_config(
-    page_title="FinLitAI Tutor NG 🇳🇬",
-    page_icon="💰",
-    layout="centered"
-)
-
-# Initialize OpenAI Client (Make sure to set your API key in Streamlit Secrets)
-client = OpenAI(api_key=st.secrets.get("OPENAI_API_KEY", "your-key-here"))
-
-st.title("💰 FinLitAI Tutor NG 🇳🇬")
-st.markdown("### Smart Money Assistant for Nigerians 🇳🇬")
-st.success("Learn • Save • Avoid Scams")
+st.set_page_config(page_title="FinLitAI Tutor NG 🇳🇬", page_icon="💰")
+st.title("FinLitAI Tutor NG 🇳🇬")
+st.success("🇳🇬 Learn money the smart way. Avoid scams. Build wealth.")
+st.info("💡 Try: 'How I fit save money?' or 'Is this investment legit?'")
 
 # =============================
 # SESSION STATE
 # =============================
 if "messages" not in st.session_state:
-    # System message sets the "personality" of the bot
-    st.session_state.messages = [
-        {"role": "system", "content": "You are a helpful Nigerian financial literacy tutor. You explain concepts like inflation, budgeting, and investment in a way that relates to the Nigerian economy. Use local context (Naira, Treasury Bills, savings apps, Ajo). Warn users against Ponzis and 'get rich quick' schemes."}
-    ]
+    st.session_state.messages = []
+if "score" not in st.session_state:
+    st.session_state.score = 0
 
 # =============================
-# DAILY TIP
+# LESSONS SIDEBAR
 # =============================
-tips = [
-    "Save at least 10% of your income.",
-    "Avoid 'get rich quick' investments.",
-    "Track your expenses weekly.",
-    "Use Ajo or bank savings wisely.",
-    "Never share your OTP or ATM PIN.",
-    "If it sounds too good, it's likely a scam.",
+st.sidebar.header("📚 Lessons")
+lesson = st.sidebar.selectbox("Choose a topic", ["Savings", "Budgeting", "Scams", "Banking Basics"])
+
+LESSONS = {
+    "Savings": "Savings na when you keep part of your money for future use instead of spending everything.",
+    "Budgeting": "Budget na plan wey show how you go spend your money so you no go finish am.",
+    "Scams": "Scam na trick wey people use collect your money. If e too good to be true, na scam.",
+    "Banking Basics": "Bank na place wey you fit keep money safe and send money to others."
+}
+
+if st.sidebar.button("Show Lesson"):
+    st.sidebar.success(LESSONS[lesson])
+
+# =============================
+# QUIZ SIDEBAR
+# =============================
+st.sidebar.header("🧠 Quick Quiz")
+quiz_question = "Which one be scam?"
+options = [
+    "Save ₦1000 every week",
+    "Invest ₦5k get ₦50k in 2 days",
+    "Open bank account",
+    "Track your expenses"
 ]
 
-if "daily_tip" not in st.session_state:
-    st.session_state.daily_tip = random.choice(tips)
+answer = st.sidebar.radio(quiz_question, options)
 
-st.info(f"💡 Tip of the Day: {st.session_state.daily_tip}")
+if st.sidebar.button("Submit Answer"):
+    if answer == "Invest ₦5k get ₦50k in 2 days":
+        st.sidebar.success("Correct! 🎉")
+        st.session_state.score += 1
+    else:
+        st.sidebar.error("Wrong! Try again.")
+
+st.sidebar.write(f"Score: {st.session_state.score}")
 
 # =============================
-# SIDEBAR TOOLS
+# BACKUP RESPONSE FUNCTION
 # =============================
-st.sidebar.title("📊 Financial Tools")
-st.sidebar.markdown("---")
+def backup_response(user_input):
+    text = user_input.lower()
 
-# Quick Savings Calculator
-st.sidebar.subheader("Naira Savings Goal 🇳🇬")
-goal_amount = st.sidebar.number_input("Target Amount (₦)", min_value=0, value=100000)
-monthly_save = st.sidebar.number_input("Monthly Savings (₦)", min_value=1, value=5000)
+    if "save" in text:
+        return "💡 Start small. Keep part of your money weekly. Even ₦500 helps. Avoid unnecessary spending."
 
-if monthly_save > 0:
-    months = goal_amount / monthly_save
-    st.sidebar.write(f"It will take you **{months:.1f} months** to hit your goal!")
+    elif "budget" in text:
+        return "📊 Budget means planning your money: divide your money into needs, wants, and savings."
 
-st.sidebar.markdown("---")
-if st.sidebar.button("Clear Chat"):
-    st.session_state.messages = [st.session_state.messages[0]] # Keep the system prompt
-    st.rerun()
+    elif "scam" in text or "invest" in text:
+        return "⚠️ This looks like a scam. High returns in 2 days are risky. Always verify before investing."
+
+    elif "bank" in text:
+        return "🏦 Banks keep your money safe and help you send/receive money securely."
+
+    else:
+        return "🤖 I'm here to help you learn money basics. Ask about savings, scams, or budgeting!"
 
 # =============================
 # CHAT INTERFACE
 # =============================
-# Display chat history (skipping the hidden system message)
-for message in st.session_state.messages:
-    if message["role"] != "system":
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+st.subheader("💬 Ask FinLitAI")
 
-# Chat input logic
-if prompt := st.chat_input("How can I help you manage your money today?"):
-    # Add user message to history
-    st.session_state.messages.append({"role": "user", "content": prompt})
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
+
+user_input = st.chat_input("Ask about money in Pidgin or English...")
+
+if user_input:
+    # Show user message
+    st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
-        st.markdown(prompt)
+        st.markdown(user_input)
 
-    # Generate response from OpenAI
-    with st.chat_message("assistant"):
-        stream = client.chat.completions.create(
-            model="gpt-3.5-turbo", # or "gpt-4"
+    try:
+        api_key = st.secrets.get("OPENAI_API_KEY")
+
+        if not api_key:
+            raise Exception("No API key found")
+
+        client = OpenAI(api_key=api_key)
+
+        system_prompt = """
+You are FinLitAI Tutor NG.
+
+Teach financial literacy in simple English and Nigerian Pidgin.
+
+IMPORTANT:
+- If user message looks like a scam, clearly warn them.
+- Explain WHY it is a scam.
+- Suggest a safer alternative.
+
+Use Nigerian examples (Ajo, POS, betting, Ponzi schemes).
+Be friendly, clear, and short.
+"""
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
             messages=[
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages
-            ],
-            stream=True,
+                {"role": "system", "content": system_prompt},
+                *st.session_state.messages
+            ]
         )
-        response = st.write_stream(stream)
-    
-    # Save assistant response to history
-    st.session_state.messages.append({"role": "assistant", "content": response})
+
+        reply = response.choices[0].message.content
+
+    except Exception as e:
+        reply = backup_response(user_input)
+        st.warning("⚠️ Running in demo backup mode (offline responses).")
+        # Uncomment for debugging if needed:
+        # st.write("Debug:", e)
+
+    # Show assistant reply
+    st.session_state.messages.append({"role": "assistant", "content": reply})
+    with st.chat_message("assistant"):
+        st.markdown(reply)
+
+# =============================
+# GREEN 3MTT-THEMED FOOTER
+# =============================
+st.markdown(
+    """
+    <hr style="border-top:2px solid #228B22; margin:40px 0 20px;">
+    <div style="text-align:center; background-color:#004d00; color:#f0f8ff; font-size:14px; padding:20px 10px; border-radius:8px; margin:0 auto; max-width:800px;">
+        Fellow ID: <strong>FE/26/4246539238</strong><br>
+        Submitted by <strong>Adama Nuhu</strong><br>
+        <span style="color:#32CD32; font-weight:bold;">3MTT NextGen Knowledge Showcase</span> 🇳🇬<br>
+        Education Pillar • Powered by AI
+    </div>
+    """,
+    unsafe_allow_html=True
+)
