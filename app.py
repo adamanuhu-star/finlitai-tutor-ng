@@ -4,7 +4,7 @@ import folium
 from streamlit_folium import st_folium
 
 # =========================
-# OPTIONAL: TWILIO (SAFE IMPORT)
+# OPTIONAL TWILIO IMPORT
 # =========================
 try:
     from twilio.rest import Client
@@ -57,18 +57,41 @@ def save_report(lat, lon, incident, agency, description):
     df.to_csv("reports.csv", index=False)
 
 # =========================
-# SAFE SMS FUNCTION
+# GET AGENCY PHONE
 # =========================
-def send_sms_safe(incident, agency, description, lat, lon):
+def get_agency_phone(agency):
+    mapping = {
+        "FRSC": "FRSC_PHONE",
+        "Fire Service": "FIRE_PHONE",
+        "NEMA": "NEMA_PHONE",
+        "Police": "POLICE_PHONE",
+        "NSCDC": "NSCDC_PHONE"
+    }
+
+    key = mapping.get(agency)
+
+    if key and key in st.secrets:
+        return st.secrets[key]
+    return None
+
+# =========================
+# SEND SMS (ROUTED)
+# =========================
+def send_sms(incident, agency, description, lat, lon):
+
     if not TWILIO_AVAILABLE:
         return "Twilio not installed"
 
     try:
-        # check if secrets exist
-        required_keys = ["TWILIO_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE", "ALERT_PHONE"]
-        for key in required_keys:
+        required = ["TWILIO_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE"]
+        for key in required:
             if key not in st.secrets:
                 return f"Missing secret: {key}"
+
+        to_number = get_agency_phone(agency)
+
+        if not to_number:
+            return f"No phone set for {agency}"
 
         client = Client(
             st.secrets["TWILIO_SID"],
@@ -87,7 +110,7 @@ Details:
         client.messages.create(
             body=message,
             from_=st.secrets["TWILIO_PHONE"],
-            to=st.secrets["ALERT_PHONE"]
+            to=to_number
         )
 
         return "sent"
@@ -101,13 +124,12 @@ Details:
 menu = st.sidebar.selectbox("Menu", ["Report Incident", "Dashboard"])
 
 # =========================
-# REPORT INCIDENT PAGE
+# REPORT PAGE
 # =========================
 if menu == "Report Incident":
 
     st.subheader("📍 Select Location")
 
-    # Map
     m = folium.Map(location=[9.08, 8.67], zoom_start=6)
     m.add_child(folium.LatLngPopup())
 
@@ -119,7 +141,6 @@ if menu == "Report Incident":
 
         st.success(f"📍 Location selected: {st.session_state.lat}, {st.session_state.lon}")
 
-    # Form
     st.subheader("📝 Incident Details")
 
     incident = st.selectbox("Select Incident", list(AGENCY_MAP.keys()))
@@ -132,13 +153,11 @@ if menu == "Report Incident":
     image = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
     video = st.file_uploader("Upload Video", type=["mp4"])
 
-    # SUBMIT BUTTON
     if st.button("🚀 Submit Report"):
 
         if st.session_state.lat is None:
             st.error("❌ Please select location on the map")
         else:
-            # Save
             save_report(
                 st.session_state.lat,
                 st.session_state.lon,
@@ -147,8 +166,7 @@ if menu == "Report Incident":
                 description
             )
 
-            # SMS
-            sms_status = send_sms_safe(
+            sms_status = send_sms(
                 incident,
                 agency,
                 description,
@@ -157,7 +175,7 @@ if menu == "Report Incident":
             )
 
             if sms_status == "sent":
-                st.success("✅ Report saved & SMS alert sent")
+                st.success("✅ Report saved & sent to correct agency")
             else:
                 st.warning(f"⚠️ Report saved, SMS issue: {sms_status}")
 
