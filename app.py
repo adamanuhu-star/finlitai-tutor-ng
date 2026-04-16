@@ -1,198 +1,193 @@
 import streamlit as st
+import pandas as pd
 import folium
 from streamlit_folium import st_folium
-import geocoder
-import csv
-import os
-import pandas as pd
 
-# ---------------- PAGE ----------------
-st.set_page_config(page_title="RescueNet Nigeria", layout="wide")
+# =========================
+# OPTIONAL: TWILIO (SAFE IMPORT)
+# =========================
+try:
+    from twilio.rest import Client
+    TWILIO_AVAILABLE = True
+except:
+    TWILIO_AVAILABLE = False
 
-# ---------------- LANGUAGE ----------------
-language = st.sidebar.selectbox(
-    "🌍 Language",
-    ["English", "Pidgin", "Hausa", "Yoruba", "Igbo"]
-)
+# =========================
+# PAGE CONFIG
+# =========================
+st.set_page_config(page_title="RescueNet Nigeria 🇳🇬", layout="wide")
+st.title("🚨 RescueNet Nigeria 🇳🇬")
 
-def translate(text):
-    translations = {
-        "Report Incident": {
-            "Pidgin": "Report Wahala",
-            "Hausa": "Kai Rahoton Hadari",
-            "Yoruba": "Jabo Iṣẹlẹ",
-            "Igbo": "Kọwaa Ihe Mere"
-        },
-        "Describe situation": {
-            "Pidgin": "Explain wetin happen",
-            "Hausa": "Bayyana abinda ya faru",
-            "Yoruba": "Ṣàlàyé ohun tó ṣẹlẹ̀",
-            "Igbo": "Kọwaa ihe mere"
-        }
-    }
-    return translations.get(text, {}).get(language, text)
+# =========================
+# SESSION STATE
+# =========================
+if "lat" not in st.session_state:
+    st.session_state.lat = None
+    st.session_state.lon = None
 
-# ---------------- TITLE ----------------
-st.markdown("<h1 style='text-align: center;'>🚨 RescueNet Nigeria 🇳🇬</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center;'>Emergency Response System</p>", unsafe_allow_html=True)
+# =========================
+# INCIDENT → AGENCY MAP
+# =========================
+AGENCY_MAP = {
+    "Road Accident": "FRSC",
+    "Fire Outbreak": "Fire Service",
+    "Flood": "NEMA",
+    "Kidnapping": "Police",
+    "Critical National Asset Vandalism": "NSCDC"
+}
 
-st.divider()
-
-# ---------------- SAVE ----------------
+# =========================
+# SAVE REPORT
+# =========================
 def save_report(lat, lon, incident, agency, description):
-    file_exists = os.path.isfile("reports.csv")
+    df = pd.DataFrame([{
+        "lat": lat,
+        "lon": lon,
+        "incident": incident,
+        "agency": agency,
+        "description": description
+    }])
 
-    with open("reports.csv", mode="a", newline="") as file:
-        writer = csv.writer(file)
+    try:
+        old = pd.read_csv("reports.csv")
+        df = pd.concat([old, df], ignore_index=True)
+    except:
+        pass
 
-        if not file_exists:
-            writer.writerow(["Latitude", "Longitude", "Incident", "Agency", "Description"])
+    df.to_csv("reports.csv", index=False)
 
-        writer.writerow([lat, lon, incident, agency, description])
+# =========================
+# SAFE SMS FUNCTION
+# =========================
+def send_sms_safe(incident, agency, description, lat, lon):
+    if not TWILIO_AVAILABLE:
+        return "Twilio not installed"
 
-# ---------------- LOAD ----------------
-def load_reports():
-    if os.path.exists("reports.csv"):
-        return pd.read_csv("reports.csv")
-    return pd.DataFrame(columns=["Latitude", "Longitude", "Incident", "Agency", "Description"])
+    try:
+        # check if secrets exist
+        required_keys = ["TWILIO_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE", "ALERT_PHONE"]
+        for key in required_keys:
+            if key not in st.secrets:
+                return f"Missing secret: {key}"
 
-# ---------------- MENU ----------------
+        client = Client(
+            st.secrets["TWILIO_SID"],
+            st.secrets["TWILIO_AUTH_TOKEN"]
+        )
+
+        message = f"""🚨 RescueNet Nigeria 🇳🇬
+Incident: {incident}
+Agency: {agency}
+Location: {lat}, {lon}
+
+Details:
+{description}
+"""
+
+        client.messages.create(
+            body=message,
+            from_=st.secrets["TWILIO_PHONE"],
+            to=st.secrets["ALERT_PHONE"]
+        )
+
+        return "sent"
+
+    except Exception as e:
+        return str(e)
+
+# =========================
+# MENU
+# =========================
 menu = st.sidebar.selectbox("Menu", ["Report Incident", "Dashboard"])
 
-# ---------------- LOCATION ----------------
-if "lat" not in st.session_state:
-    try:
-        g = geocoder.ip('me')
-        if g.ok:
-            st.session_state.lat = g.latlng[0]
-            st.session_state.lon = g.latlng[1]
-        else:
-            st.session_state.lat = None
-            st.session_state.lon = None
-    except:
-        st.session_state.lat = None
-        st.session_state.lon = None
-
-# ================= REPORT PAGE =================
+# =========================
+# REPORT INCIDENT PAGE
+# =========================
 if menu == "Report Incident":
 
-    col1, col2 = st.columns([1, 1])
+    st.subheader("📍 Select Location")
 
-    # -------- MAP --------
-    with col1:
-        st.subheader("📍 Location")
+    # Map
+    m = folium.Map(location=[9.08, 8.67], zoom_start=6)
+    m.add_child(folium.LatLngPopup())
 
-        lat = st.session_state.lat or 9.0820
-        lon = st.session_state.lon or 8.6753
+    map_data = st_folium(m, height=400)
 
-        m = folium.Map(location=[lat, lon], zoom_start=10)
-        map_data = st_folium(m, width=500, height=350)
+    if map_data and map_data.get("last_clicked"):
+        st.session_state.lat = map_data["last_clicked"]["lat"]
+        st.session_state.lon = map_data["last_clicked"]["lng"]
 
-        if map_data and map_data.get("last_clicked"):
-            st.session_state.lat = map_data["last_clicked"]["lat"]
-            st.session_state.lon = map_data["last_clicked"]["lng"]
+        st.success(f"📍 Location selected: {st.session_state.lat}, {st.session_state.lon}")
 
-        if st.session_state.lat:
-            st.success(f"📍 {st.session_state.lat}, {st.session_state.lon}")
+    # Form
+    st.subheader("📝 Incident Details")
+
+    incident = st.selectbox("Select Incident", list(AGENCY_MAP.keys()))
+    agency = AGENCY_MAP[incident]
+
+    st.info(f"🚓 Responsible Agency: {agency}")
+
+    description = st.text_area("Describe the situation")
+
+    image = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
+    video = st.file_uploader("Upload Video", type=["mp4"])
+
+    # SUBMIT BUTTON
+    if st.button("🚀 Submit Report"):
+
+        if st.session_state.lat is None:
+            st.error("❌ Please select location on the map")
         else:
-            st.warning("Select location")
+            # Save
+            save_report(
+                st.session_state.lat,
+                st.session_state.lon,
+                incident,
+                agency,
+                description
+            )
 
-    # -------- FORM --------
-    with col2:
-        st.subheader("🚨 " + translate("Report Incident"))
+            # SMS
+            sms_status = send_sms_safe(
+                incident,
+                agency,
+                description,
+                st.session_state.lat,
+                st.session_state.lon
+            )
 
-        incident = st.selectbox("Incident Type", [
-            "Road Accident",
-            "Fire Outbreak",
-            "Flood",
-            "Kidnapping",
-            "Critical National Asset Vandalism"
-        ])
-
-        agency = ""
-        number = ""
-
-        if incident == "Road Accident":
-            agency, number = "FRSC", "122"
-        elif incident == "Fire Outbreak":
-            agency, number = "Fire Service", "112"
-        elif incident == "Flood":
-            agency, number = "NEMA", "0800-ANEMA"
-        elif incident == "Kidnapping":
-            agency, number = "Police", "112"
-        elif incident == "Critical National Asset Vandalism":
-            agency, number = "NSCDC", "0800-NSCDC"
-
-        st.info(f"{agency} | 📞 {number}")
-
-        description = st.text_area("📝 " + translate("Describe situation"))
-
-        # 📷 IMAGE
-        image = st.file_uploader("📷 Upload Image", type=["jpg", "png", "jpeg"])
-
-        # 🎥 VIDEO
-        video = st.file_uploader("🎥 Upload Video", type=["mp4", "mov"])
-
-        if st.button("🚀 Report Incident"):
-            if st.session_state.lat is not None:
-
-                save_report(
-                    st.session_state.lat,
-                    st.session_state.lon,
-                    incident,
-                    agency,
-                    description
-                )
-
-                st.success("✅ Report submitted successfully")
-
-                if image:
-                    st.image(image)
-
-                if video:
-                    st.video(video)
-
+            if sms_status == "sent":
+                st.success("✅ Report saved & SMS alert sent")
             else:
-                st.error("⚠️ Please select location on map")
+                st.warning(f"⚠️ Report saved, SMS issue: {sms_status}")
 
-# ================= DASHBOARD =================
+            if image:
+                st.image(image)
+
+            if video:
+                st.video(video)
+
+# =========================
+# DASHBOARD
+# =========================
 elif menu == "Dashboard":
 
-    st.subheader("📊 Incident Dashboard")
+    st.subheader("📊 Live Incident Dashboard")
 
-    data = load_reports()
+    try:
+        df = pd.read_csv("reports.csv")
 
-    if not data.empty:
+        m = folium.Map(location=[9.08, 8.67], zoom_start=6)
 
-        st.dataframe(data)
-
-        csv_file = data.to_csv(index=False).encode("utf-8")
-        st.download_button("⬇️ Download Reports", csv_file, "reports.csv")
-
-        st.divider()
-
-        st.subheader("🗺️ Live Incident Map")
-
-        m = folium.Map(location=[9.0820, 8.6753], zoom_start=6)
-
-        for _, row in data.iterrows():
+        for _, row in df.iterrows():
             folium.Marker(
-                [row["Latitude"], row["Longitude"]],
-                popup=f"{row['Incident']} - {row['Agency']}",
-                icon=folium.Icon(color="red")
+                [row["lat"], row["lon"]],
+                popup=f"{row['incident']} - {row['agency']}"
             ).add_to(m)
 
-        st_folium(m, width=800, height=500)
+        st_folium(m, height=500)
 
-    else:
-        st.warning("No reports yet")
+        st.dataframe(df)
 
-# ---------------- FOOTER ----------------
-st.divider()
-st.markdown("### 🚑 Emergency Contacts")
-
-st.write("🚓 Police: 112")
-st.write("🚧 FRSC: 122")
-st.write("🚒 Fire: 112")
-st.write("🌊 NEMA: 0800-ANEMA")
-st.write("🛡️ NSCDC: 0800-NSCDC")
+    except:
+        st.info("No reports available yet")
