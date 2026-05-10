@@ -9,7 +9,7 @@ st.title("FinLitAI Tutor NG 🇳🇬")
 st.success("🇳🇬 Learn money the smart way. Avoid scams. Build wealth.")
 st.info("💡 Try: 'How I fit save money?' or 'Is this investment legit?'")
 
-# =============================
+# ===============================
 # SESSION STATE
 # =============================
 if "messages" not in st.session_state:
